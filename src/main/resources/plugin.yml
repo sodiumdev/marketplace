@@ -1,0 +1,4 @@
+name: MarketPlace
+version: '${version}'
+main: zip.sodium.marketplace.Entrypoint
+api-version: '1.20'
