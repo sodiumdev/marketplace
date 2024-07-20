@@ -1,12 +1,23 @@
 package zip.sodium.marketplace.util;
 
+import org.bukkit.Bukkit;
 import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.*;
 
 public final class ReflectionUtil {
     private ReflectionUtil() {}
+
+    public static final String MINECRAFT_VERSION = getVersion();
+
+    private static String getVersion() {
+        String version = Bukkit.getServer().getClass().getName().substring(22);
+        version  = version.substring(0, version.length() - 11);
+
+        return version;
+    }
 
     @Contract("null -> null")
     public static @Nullable Class<?> tryGetClass(final String className) {
@@ -58,6 +69,18 @@ public final class ReflectionUtil {
             return null;
 
         return tryGetValue(base, field);
+    }
+
+    @Contract("null, _ -> null; _, null -> null")
+    public static @Nullable Constructor<?> tryGetConstructor(final Class<?> clazz, final @NotNull Class<?>... parameterTypes) {
+        if (clazz == null)
+            return null;
+
+        try {
+            return trySetAccessible(clazz.getDeclaredConstructor(parameterTypes));
+        } catch (NoSuchMethodException ignored) {}
+
+        return null;
     }
 
     @Contract("null, _, _ -> null; _, null, _ -> null")

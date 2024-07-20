@@ -1,4 +1,4 @@
-package zip.sodium.marketplace.util.spigot;
+package zip.sodium.marketplace.util.bukkit;
 
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandMap;

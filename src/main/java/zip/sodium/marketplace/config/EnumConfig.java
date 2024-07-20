@@ -10,16 +10,39 @@ import zip.sodium.marketplace.Entrypoint;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.function.BiFunction;
+import java.util.logging.Level;
 
 public interface EnumConfig {
+    private static void writeString(final @NotNull Path path, final @NotNull String content) {
+        try {
+            Files.writeString(
+                    path,
+                    content
+            );
+        } catch (final IOException e) {
+            Entrypoint.logger().log(
+                    Level.SEVERE,
+                    "Error writing to file `" + path.getFileName() + "`!",
+                    e
+            );
+        }
+    }
+
     /**
-     * @param t A random instance of the enum
-     * @param <T> Type of the enum
-     * @return The default config generated via the enum's values
+     * @param plugin The plugin executing the method
+     * @param fileName The file to save <code>defaultConfigFileContent</code> to
+     * @param t All the values of the enum
      */
-    static <T extends Enum<T> & EnumConfig> @NotNull String generateDefaultConfigFileContent(final @NotNull T[] t) {
+    static <T extends Enum<T> & EnumConfig> void trySaveDefaults(final @NotNull Plugin plugin, final @NotNull String fileName, final @NotNull T @NotNull [] t) {
+        final var dataFolder = plugin.getDataFolder();
+        if (!dataFolder.isDirectory())
+            dataFolder.mkdirs();
+
         final var defaultConfig = new YamlConfiguration();
         for (final var element : t) {
             element.setCache(null);
@@ -27,33 +50,48 @@ public interface EnumConfig {
             defaultConfig.set(element.toString(), element.defaultValue());
         }
 
-        return defaultConfig.saveToString();
-    }
-
-    /**
-     * @param plugin The plugin executing the method
-     * @param fileName The file to save <code>defaultConfigFileContent</code> to
-     * @param defaultConfigFileContent The contents
-     */
-    static void trySaveDefaults(final @NotNull Plugin plugin, final @NotNull String fileName, final @NotNull String defaultConfigFileContent) {
-        final var dataFolder = plugin.getDataFolder();
-        if (!dataFolder.isDirectory())
-            dataFolder.mkdirs();
-
         final var configFile = new File(dataFolder, fileName);
-        if (configFile.exists())
+        if (configFile.exists()) {
+            final var config = tryGetConfigFile(plugin, fileName);
+            final var yaml = config.getKeys(false);
+            final var defaultYaml = defaultConfig.getKeys(false);
+
+            if (!yaml.containsAll(defaultYaml)) {
+                final var newConfig = new YamlConfiguration();
+                for (final String element : defaultYaml) {
+                    if (yaml.contains(element)) {
+                        newConfig.set(element, config.get(element));
+                        continue;
+                    }
+
+                    newConfig.set(element, defaultConfig.get(element));
+                }
+
+                writeString(
+                        configFile.toPath(),
+                        newConfig.saveToString()
+                );
+            }
+
             return;
+        }
 
         try {
             configFile.createNewFile();
-
-            Files.writeString(
-                    configFile.toPath(),
-                    defaultConfigFileContent
+        } catch (final IOException e) {
+            Entrypoint.logger().log(
+                    Level.SEVERE,
+                    "Error creating new config file! Will use default values instead.",
+                    e
             );
-        } catch (IOException e) {
-            Entrypoint.logger().severe("Error saving config file! Will use default values instead.");
+
+            return;
         }
+
+        writeString(
+                configFile.toPath(),
+                defaultConfig.saveToString()
+        );
     }
 
     /**
@@ -70,7 +108,7 @@ public interface EnumConfig {
                             fileName
                     )
             );
-        } catch (IOException | InvalidConfigurationException e) {
+        } catch (final IOException | InvalidConfigurationException e) {
             Entrypoint.logger().severe("Error loading config file! Will use defaults instead.");
         }
 

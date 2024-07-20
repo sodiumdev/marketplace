@@ -16,7 +16,7 @@ public final class BrigadierSellCommand {
     public static <T> void acknowledge(final CommandDispatcher<T> dispatcher) {
         final var sellNode = LiteralArgumentBuilder
                 .<T>literal("sell")
-                .requires(source -> CommandSourceStackUtil.getPlayerOrException(source).hasPermission(PermissionConfig.SELL.get()))
+                .requires(source -> PermissionConfig.SELL.has(CommandSourceStackUtil.getPlayerOrException(source)))
                 .build();
 
         final var priceNode = RequiredArgumentBuilder

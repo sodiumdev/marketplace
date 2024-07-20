@@ -8,11 +8,20 @@ import zip.sodium.marketplace.config.EnumConfig;
 public enum DatabaseConfig implements EnumConfig {
     CONNECTION_STRING(
             "REPLACE ME"
+    ),
+    DATABASE_NAME(
+            "MarketplaceData"
+    ),
+    TRANSACTIONS_COLLECTION_NAME(
+            "Transactions"
+    ),
+    ITEMS_COLLECTION_NAME(
+            "Items"
     );
 
     private static YamlConfiguration configFile;
     public static void saveDefaults(final Plugin plugin, final String fileName) {
-        EnumConfig.trySaveDefaults(plugin, fileName, EnumConfig.generateDefaultConfigFileContent(values()));
+        EnumConfig.trySaveDefaults(plugin, fileName, values());
 
         configFile = EnumConfig.tryGetConfigFile(plugin, fileName);
     }
@@ -22,6 +31,10 @@ public enum DatabaseConfig implements EnumConfig {
 
     DatabaseConfig(final String defaultValue) {
         this.defaultValue = defaultValue;
+    }
+
+    public String get() {
+        return get(FileConfiguration::getString);
     }
 
     @Override

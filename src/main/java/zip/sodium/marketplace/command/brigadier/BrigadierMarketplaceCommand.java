@@ -15,8 +15,8 @@ public final class BrigadierMarketplaceCommand {
 
     public static <T> void acknowledge(final CommandDispatcher<T> dispatcher) {
         final var sellNode = LiteralArgumentBuilder
-                .<T>literal("sell")
-                .requires(source -> CommandSourceStackUtil.getPlayerOrException(source).hasPermission(PermissionConfig.VIEW.get()))
+                .<T>literal("marketplace")
+                .requires(source -> PermissionConfig.VIEW.has(CommandSourceStackUtil.getPlayerOrException(source)))
                 .executes(BrigadierMarketplaceCommand::execute)
                 .build();
 

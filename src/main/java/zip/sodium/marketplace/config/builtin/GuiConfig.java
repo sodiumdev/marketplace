@@ -1,16 +1,26 @@
 package zip.sodium.marketplace.config.builtin;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.permissions.Permissible;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.NotNull;
 import zip.sodium.marketplace.config.EnumConfig;
 
-public enum PermissionConfig implements EnumConfig {
-    SELL("marketplace.sell"),
-    VIEW("marketplace.view"),
-    BLACKMARKET("marketplace.blackmarket"),
-    TRANSACTIONS("marketplace.history");
+public enum GuiConfig implements EnumConfig {
+    MARKETPLACE_GUI_TITLE(
+            "<gray>Marketplace"
+    ),
+    LOADING_SKULL_NAME(
+            "<!i><white>Loading..."
+    ),
+    REFRESH_ITEM_NAME(
+            "<!i><green>Refresh"
+    );
 
     private static YamlConfiguration configFile;
     public static void saveDefaults(final Plugin plugin, final String fileName) {
@@ -22,16 +32,19 @@ public enum PermissionConfig implements EnumConfig {
     private Object cache = null;
     private final Object defaultValue;
 
-    PermissionConfig(final String defaultValue) {
+    GuiConfig(final String defaultValue) {
         this.defaultValue = defaultValue;
     }
 
-    public boolean has(final Permissible permissible) {
-        return permissible.hasPermission(get());
+    public String get() {
+        return LegacyComponentSerializer.legacySection().serialize(get(TagResolver.empty()));
     }
 
-    public String get() {
-        return get(FileConfiguration::getString);
+    public @NotNull Component get(final TagResolver... resolver) {
+        return MiniMessage.miniMessage().deserialize(
+                get(FileConfiguration::getString),
+                resolver
+        );
     }
 
     @Override
