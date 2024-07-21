@@ -12,7 +12,9 @@ public final class SellCommandExecutor {
         if (item.getAmount() == 0 || item.getType().isAir())
             return MessageConfig.INVALID_ITEM.send(player);
 
-        DatabaseHolder.putUpForSale(
+        MessageConfig.ENLISTING_ITEM.send(player);
+
+        DatabaseHolder.putUp(
                 player,
                 item,
                 price

@@ -1,4 +1,6 @@
+author: sodium.zip
 name: MarketPlace
 version: '${version}'
 main: zip.sodium.marketplace.Entrypoint
 api-version: '1.20'
+depend: [Vault]

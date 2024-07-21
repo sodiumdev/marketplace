@@ -19,7 +19,34 @@ public enum GuiConfig implements EnumConfig {
             "<!i><white>Loading..."
     ),
     REFRESH_ITEM_NAME(
-            "<!i><green>Refresh"
+            "<!i><white>Refresh"
+    ),
+    PREVIOUS_ITEM_NAME(
+            "<!i><red>Previous"
+    ),
+    NEXT_ITEM_NAME(
+            "<!i><green>Next"
+    ),
+    LORE_PRICE(
+            "<!i><reset>$<price>"
+    ),
+    CANCEL_ITEM_NAME(
+            "<!i><red>Cancel"
+    ),
+    CONFIRM_ITEM_NAME(
+            "<!i><green>Confirm"
+    ),
+    INSUFFICIENT_FUNDS(
+            "<!i><red>Insufficient Funds"
+    ),
+    UNKNOWN_LISTING(
+            "<!><red>Unknown Item Listing"
+    ),
+    INVENTORY_FULL(
+            "<!i><red>Inventory Full"
+    ),
+    BOUGHT_ITEM(
+            "<!i><green>Successfully Bought Item"
     );
 
     private static YamlConfiguration configFile;
@@ -37,7 +64,11 @@ public enum GuiConfig implements EnumConfig {
     }
 
     public String get() {
-        return LegacyComponentSerializer.legacySection().serialize(get(TagResolver.empty()));
+        return getResolved(TagResolver.empty());
+    }
+
+    public String getResolved(final TagResolver... resolver) {
+        return LegacyComponentSerializer.legacySection().serialize(get(resolver));
     }
 
     public @NotNull Component get(final TagResolver... resolver) {

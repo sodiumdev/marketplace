@@ -30,13 +30,13 @@ public final class SpigotSellCommand extends Command {
         if (!PermissionConfig.SELL.has(player))
             return MessageConfig.INSUFFICIENT_PERMISSIONS.send(
                     sender,
-                    Placeholder.component("permission", Component.text(PermissionConfig.SELL.get()))
+                    Placeholder.unparsed("permission", PermissionConfig.SELL.get())
             );
 
         if (args.length < 1)
             return MessageConfig.EXPECTED_ARGUMENT.send(
                     player,
-                    Placeholder.component("argument", Component.text("price"))
+                    Placeholder.unparsed("argument", "price")
             );
 
         if (args.length > 1)
@@ -46,15 +46,15 @@ public final class SpigotSellCommand extends Command {
         if (price == null)
             return MessageConfig.INVALID_ARGUMENT.send(
                     player,
-                    Placeholder.component("argument", Component.text("price")),
-                    Placeholder.component("expected", Component.text("integer")),
-                    Placeholder.component("got", Component.text(args[0]))
+                    Placeholder.unparsed("argument", "price"),
+                    Placeholder.unparsed("expected", "integer"),
+                    Placeholder.unparsed("got", args[0])
             );
 
         if (price < 1)
             return MessageConfig.INTEGER_OUT_OF_BOUNDS.send(
                     player,
-                    Placeholder.component("argument", Component.text("price")),
+                    Placeholder.unparsed("argument", "price"),
                     Placeholder.component("min", Component.text(1)),
                     Placeholder.component("max", Component.text(Integer.MAX_VALUE))
             );

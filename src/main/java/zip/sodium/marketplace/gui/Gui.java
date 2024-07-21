@@ -1,40 +1,53 @@
 package zip.sodium.marketplace.gui;
 
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
-import org.bukkit.event.inventory.InventoryCloseEvent;
-import org.bukkit.event.inventory.InventoryOpenEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import zip.sodium.marketplace.data.message.MessageType;
 import zip.sodium.marketplace.gui.item.GuiItem;
 import zip.sodium.marketplace.listener.builtin.GuiListener;
+import zip.sodium.marketplace.util.bukkit.ItemStackUtil;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
 public class Gui {
-    @Contract("_, _ -> new")
-    public static Gui of(final int rows, final BiConsumer<Gui, Player> onOpen) {
-        return new Gui(rows) {
+    @Contract("_, _, _ -> new")
+    public static Gui of(final String title, final int rows, final BiConsumer<Gui, Player> setup) {
+        return new Gui(title, rows) {
             @Override
             public void setup(final @NotNull Player player) {
-                onOpen.accept(this, player);
+                setup.accept(this, player);
             }
         };
     }
+
+    @Contract("_, _ -> new")
+    public static Gui of(final int rows, final BiConsumer<Gui, Player> setup) {
+        return of(
+                null,
+                rows,
+                setup
+        );
+    }
+
+    private final String title;
 
     private Inventory inventory;
 
     private final int size;
     private final Map<Integer, GuiItem> items;
 
-    private Gui(final int rows) {
+    private Gui(final String title, final int rows) {
         size = rows * 9;
         items = new HashMap<>(size);
+        this.title = title;
     }
 
     public final void surroundWith(final ItemStack stack) {
@@ -55,16 +68,45 @@ public class Gui {
     }
 
     public final void setItem(final int index, final ItemStack item) {
+        items.remove(index);
         inventory.setItem(index, item);
     }
 
     public final void addItem(final ItemStack... items) {
-        inventory.addItem(items);
+        for (final var item : items) {
+            final int index = inventory.firstEmpty();
+            if (index == -1)
+                break;
+
+            setItem(index, item);
+        }
+    }
+
+    public final void addItem(final GuiItem... items) {
+        for (final var item : items) {
+            final int index = inventory.firstEmpty();
+            if (index == -1)
+                break;
+
+            setItem(index, item);
+        }
     }
 
     public final void clear() {
         inventory.clear();
         items.clear();
+    }
+
+    public final void clear(final int x1, final int y1,
+                           final int x2, final int y2) {
+        for (int y = Math.min(y1, y2); y < Math.max(y1, y2); y++) {
+            for (int x = Math.min(x1, x2); x < Math.max(x1, x2); x++) {
+                final int index = y * 9 + x;
+
+                inventory.setItem(index, null);
+                items.remove(index);
+            }
+        }
     }
 
     public final void fill(final int x1, final int y1,
@@ -77,15 +119,55 @@ public class Gui {
         }
     }
 
+    public final void fill(final ItemStack stack) {
+        items.clear();
+        for (int index = 0; index < size; index++) {
+            setItem(index, stack);
+        }
+    }
+
+    public final void fill(final GuiItem item) {
+        for (int index = 0; index < size; index++) {
+            setItem(index, item);
+        }
+    }
+
+    public final void setupAndSurround(final Player player, final boolean success, final String message) {
+        setup(player);
+
+        surroundWith(
+                ItemStackUtil.of(
+                        success ? Material.GREEN_STAINED_GLASS_PANE : Material.RED_STAINED_GLASS_PANE,
+                        message
+                )
+        );
+
+        MessageType.of(success).trigger(player);
+    }
+
     public void setup(final @NotNull Player player) {}
     public void onClose(final @NotNull Player player) {}
 
-    public final void open(final @NotNull Player player, final @NotNull String title) {
+    public final void open(final @NotNull Player player) {
+        open(player, null);
+    }
+
+    public final void open(final @NotNull Player player, final @Nullable String titleOverride) {
+        player.closeInventory();
+
         GuiListener.inventoryOpened(player, this);
 
-        inventory = Bukkit.createInventory(null, size);
+        if (titleOverride == null) {
+            if (title == null) {
+                inventory = Bukkit.createInventory(null, size, title);
+            } else {
+                inventory = Bukkit.createInventory(null, size);
+            }
+        } else {
+            inventory = Bukkit.createInventory(null, size, titleOverride);
+        }
 
-        player.openInventory(inventory).setTitle(title);
+        player.openInventory(inventory);
     }
 
     public final @Nullable Inventory getInventory() {

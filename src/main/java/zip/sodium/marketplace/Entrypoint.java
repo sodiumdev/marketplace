@@ -1,11 +1,13 @@
 package zip.sodium.marketplace;
 
 import org.bukkit.Bukkit;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import zip.sodium.marketplace.command.CommandRegistrar;
 import zip.sodium.marketplace.config.ConfigHandler;
 import zip.sodium.marketplace.database.DatabaseHolder;
 import zip.sodium.marketplace.listener.ListenerHandler;
+import zip.sodium.marketplace.vault.VaultProvider;
 
 import java.util.logging.Logger;
 
@@ -19,16 +21,30 @@ public final class Entrypoint extends JavaPlugin {
         return instance.getLogger();
     }
 
+    private static void disable(final Plugin plugin) {
+        Bukkit.getPluginManager().disablePlugin(plugin);
+    }
+
     public static void disable() {
-        Bukkit.getPluginManager().disablePlugin(instance);
+        disable(instance);
     }
 
     @Override
     public void onEnable() {
+        if (getServer().getPluginManager().getPlugin("Vault") == null
+                || !VaultProvider.acknowledge()) {
+            getLogger().severe("Vault dependency not found or not setup correctly!");
+            disable(this);
+
+            return;
+        }
+
         instance = this;
 
         ConfigHandler.acknowledge(this);
         ListenerHandler.acknowledge(this);
+
+        ;
 
         DatabaseHolder.acknowledge();
         CommandRegistrar.acknowledge();

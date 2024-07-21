@@ -38,6 +38,10 @@ public enum MessageType {
         public void trigger(CommandSender player) {}
     };
 
+    public static MessageType of(final boolean flag) {
+        return flag ? SUCCESS : FAIL;
+    }
+
     public abstract void trigger(final CommandSender player);
 
     public boolean shouldPass() {

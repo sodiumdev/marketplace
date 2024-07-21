@@ -4,10 +4,9 @@ import com.mongodb.MongoException;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoDatabase;
 import org.bson.Document;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import zip.sodium.marketplace.Entrypoint;
 import zip.sodium.marketplace.config.builtin.DatabaseConfig;
@@ -16,7 +15,6 @@ import zip.sodium.marketplace.util.bukkit.ItemStackUtil;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
-import java.math.BigInteger;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.concurrent.CompletableFuture;
@@ -76,7 +74,7 @@ public final class DatabaseHolder {
         });
     }
 
-    public static CompletableFuture<Boolean> putUpForSale(final Player seller, final ItemStack item, final int price) {
+    public static CompletableFuture<Boolean> putUp(final OfflinePlayer seller, final ItemStack item, final int price) {
         final byte[] serialized;
         try {
             serialized = ItemStackUtil.serialize(item);
@@ -104,6 +102,64 @@ public final class DatabaseHolder {
 
             return true;
         });
+    }
+
+    public static CompletableFuture<Boolean> putDown(final OfflinePlayer seller, final OfflinePlayer buyer, final ItemStack item, final int price) {
+        final byte[] serialized;
+        try {
+            serialized = ItemStackUtil.serialize(item);
+        } catch (IOException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
+            Entrypoint.logger().log(
+                    Level.SEVERE,
+                    "Error serializing item!",
+                    e
+            );
+
+            return CompletableFuture.completedFuture(false);
+        }
+
+        return CompletableFuture.runAsync(() -> itemsCollection.deleteOne(
+                new Document("seller_id", seller.getUniqueId().toString())
+                        .append("item_data", serialized)
+                        .append("price", price)
+        )).thenApplyAsync(result -> transactionsCollection.insertOne(
+                    new Document("actor_id", seller.getUniqueId().hashCode())
+                            .append("status", MarketplaceStatus.SOLD.ordinal())
+                            .append("bought_by", buyer.getUniqueId().toString())
+                            .append("item_data", serialized)
+                            .append("price", price)
+        )).thenApplyAsync(result -> {
+            transactionsCollection.insertOne(
+                    new Document("actor_id", buyer.getUniqueId().hashCode())
+                            .append("status", MarketplaceStatus.BOUGHT.ordinal())
+                            .append("seller_id", seller.getUniqueId().toString())
+                            .append("item_data", serialized)
+                            .append("price", price)
+            );
+
+            return true;
+        });
+    }
+
+    public static CompletableFuture<Boolean> tryFind(final OfflinePlayer seller, final ItemStack item, final int price) {
+        final byte[] serialized;
+        try {
+            serialized = ItemStackUtil.serialize(item);
+        } catch (IOException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
+            Entrypoint.logger().log(
+                    Level.SEVERE,
+                    "Error serializing item!",
+                    e
+            );
+
+            return CompletableFuture.completedFuture(false);
+        }
+
+        return CompletableFuture.supplyAsync(() -> itemsCollection.countDocuments(
+                new Document("seller_id", seller.getUniqueId().toString())
+                        .append("item_data", serialized)
+                        .append("price", price)
+        ) >= 1);
     }
 
     public static void cleanup() {

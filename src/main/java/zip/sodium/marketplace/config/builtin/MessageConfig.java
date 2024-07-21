@@ -41,8 +41,16 @@ public enum MessageConfig implements EnumConfig {
             "<red>Cannot enlist this item on marketplace! Maybe you don't have anything on your main hand?",
             MessageType.FAIL
     ),
+    ENLISTING_ITEM(
+            "<white>Enlisting item...",
+            MessageType.SUCCESS
+    ),
     ERROR_ENLISTING_ITEM(
             "<red>Error enlisting item on marketplace!",
+            MessageType.FAIL
+    ),
+    UNKNOWN_SELLER(
+            "<red>This seller is unknown!",
             MessageType.FAIL
     ),
     SOMETHING_WENT_WRONG(

@@ -166,13 +166,7 @@ public final class ItemStackUtil {
         return (ItemStack) ITEMSTACK_AS_CRAFT_MIRROR_METHOD.invoke(null, READ_ITEM_METHOD.invoke(buf));
     }
 
-    public static ItemStack of(final Material material) {
-        return new ItemStack(material);
-    }
-
-    public static ItemStack of(final Material material, final Consumer<ItemMeta> consumer) {
-        final var item = of(material);
-
+    public static ItemStack editMeta(final ItemStack item, final Consumer<ItemMeta> consumer) {
         final var meta = item.getItemMeta();
         if (meta != null) {
             consumer.accept(meta);
@@ -180,6 +174,17 @@ public final class ItemStackUtil {
         }
 
         return item;
+    }
+
+    public static ItemStack of(final Material material) {
+        return new ItemStack(material);
+    }
+
+    public static ItemStack of(final Material material, final Consumer<ItemMeta> consumer) {
+        return editMeta(
+                of(material),
+                consumer
+        );
     }
 
     public static ItemStack of(final Material material, final String displayName) {
