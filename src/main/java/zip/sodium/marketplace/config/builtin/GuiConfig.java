@@ -1,6 +1,5 @@
 package zip.sodium.marketplace.config.builtin;
 
-import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
@@ -76,6 +75,12 @@ public enum GuiConfig implements EnumConfig {
     ),
     PUT_UP_ON_LORE(
             "<!i><white>Put up by `<me>`"
+    ),
+    BLACKMARKET_GUI_TITLE(
+            "<gray>Blackmarket"
+    ),
+    BLACKMARKET_REFRESH_INTERVAL(
+            1
     );
 
     private static YamlConfiguration configFile;
@@ -86,24 +91,22 @@ public enum GuiConfig implements EnumConfig {
     }
 
     private Object cache = null;
-    private final Object defaultValue;
+    private final @NotNull Object defaultValue;
 
-    GuiConfig(final String defaultValue) {
+    GuiConfig(final @NotNull Object defaultValue) {
         this.defaultValue = defaultValue;
     }
 
     public String get() {
-        return getResolved(TagResolver.empty());
+        return get(TagResolver.empty());
     }
 
-    public String getResolved(final TagResolver... resolver) {
-        return LegacyComponentSerializer.legacySection().serialize(get(resolver));
-    }
-
-    public @NotNull Component get(final TagResolver... resolver) {
-        return MiniMessage.miniMessage().deserialize(
-                get(FileConfiguration::getString),
-                resolver
+    public String get(final TagResolver... resolver) {
+        return LegacyComponentSerializer.legacySection().serialize(
+                MiniMessage.miniMessage().deserialize(
+                        get(FileConfiguration::getString),
+                        resolver
+                )
         );
     }
 
@@ -118,7 +121,7 @@ public enum GuiConfig implements EnumConfig {
     }
 
     @Override
-    public Object defaultValue() {
+    public @NotNull Object defaultValue() {
         return defaultValue;
     }
 

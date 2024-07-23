@@ -68,23 +68,23 @@ public final class TransactionsCommandExecutor {
         if (wasBought != null && extra != null) {
             if (wasBought) {
                 lore.add(
-                        GuiConfig.BUYER_ON_LORE.getResolved(
+                        GuiConfig.BUYER_ON_LORE.get(
                                 Placeholder.unparsed("buyer", Objects.requireNonNull(extra.getName()))
                         )
                 );
             } else lore.add(
-                    GuiConfig.SELLER_ON_LORE.getResolved(
+                    GuiConfig.SELLER_ON_LORE.get(
                             Placeholder.unparsed("seller", Objects.requireNonNull(extra.getName()))
                     )
             );
         } else lore.add(
-                GuiConfig.PUT_UP_ON_LORE.getResolved(
+                GuiConfig.PUT_UP_ON_LORE.get(
                         Placeholder.unparsed("me", player.getName())
                 )
         );
 
         lore.add(
-                GuiConfig.PRICE_ON_LORE.getResolved(
+                GuiConfig.PRICE_ON_LORE.get(
                         Placeholder.unparsed("price", Integer.toString(transaction.price()))
                 )
         );

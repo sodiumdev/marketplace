@@ -4,13 +4,15 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.permissions.Permissible;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.NotNull;
 import zip.sodium.marketplace.config.EnumConfig;
 
 public enum PermissionConfig implements EnumConfig {
     SELL("marketplace.sell"),
     VIEW("marketplace.view"),
     BLACKMARKET("marketplace.blackmarket"),
-    TRANSACTIONS("marketplace.history");
+    TRANSACTIONS("marketplace.history"),
+    REFRESH_BLACKMARKET("marketplace.blackmarket.refresh");
 
     private static YamlConfiguration configFile;
     public static void saveDefaults(final Plugin plugin, final String fileName) {
@@ -20,9 +22,9 @@ public enum PermissionConfig implements EnumConfig {
     }
 
     private Object cache = null;
-    private final Object defaultValue;
+    private final @NotNull Object defaultValue;
 
-    PermissionConfig(final String defaultValue) {
+    PermissionConfig(final @NotNull String defaultValue) {
         this.defaultValue = defaultValue;
     }
 
@@ -45,7 +47,7 @@ public enum PermissionConfig implements EnumConfig {
     }
 
     @Override
-    public Object defaultValue() {
+    public @NotNull Object defaultValue() {
         return defaultValue;
     }
 

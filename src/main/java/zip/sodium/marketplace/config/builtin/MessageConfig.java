@@ -62,11 +62,11 @@ public enum MessageConfig implements EnumConfig {
     }
 
     private Object cache = null;
-    private final Object defaultValue;
+    private final @NotNull Object defaultValue;
 
     private final MessageType messageType;
 
-    MessageConfig(final String defaultValue, final MessageType messageType) {
+    MessageConfig(final @NotNull String defaultValue, final MessageType messageType) {
         this.defaultValue = defaultValue;
         this.messageType = messageType;
     }
@@ -100,7 +100,7 @@ public enum MessageConfig implements EnumConfig {
     }
 
     @Override
-    public Object defaultValue() {
+    public @NotNull Object defaultValue() {
         return defaultValue;
     }
 

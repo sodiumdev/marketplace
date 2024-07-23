@@ -9,7 +9,6 @@ import zip.sodium.marketplace.command.common.SellCommandExecutor;
 import zip.sodium.marketplace.config.builtin.MessageConfig;
 import zip.sodium.marketplace.config.builtin.PermissionConfig;
 import zip.sodium.marketplace.util.bukkit.CommandMapUtil;
-
 import java.util.List;
 
 public final class SpigotSellCommand extends Command {
@@ -42,14 +41,17 @@ public final class SpigotSellCommand extends Command {
         if (args.length > 1)
             return MessageConfig.EXPECTED_LESS_ARGUMENTS.send(player);
 
-        final Integer price = Integer.getInteger(args[0]);
-        if (price == null)
+        final int price;
+        try {
+            price = Integer.parseInt(args[0]);
+        } catch (final NumberFormatException e) {
             return MessageConfig.INVALID_ARGUMENT.send(
                     player,
                     Placeholder.unparsed("argument", "price"),
                     Placeholder.unparsed("expected", "integer"),
                     Placeholder.unparsed("got", args[0])
             );
+        }
 
         if (price < 1)
             return MessageConfig.INTEGER_OUT_OF_BOUNDS.send(
@@ -67,9 +69,12 @@ public final class SpigotSellCommand extends Command {
 
     @Override
     public @NotNull List<String> tabComplete(final @NotNull CommandSender sender, final @NotNull String alias, final @NotNull String[] args) throws IllegalArgumentException {
-        if (args.length == 1
-                && args[0].chars().allMatch(Character::isDigit))
-            return List.of(args[0]);
+        if (args.length == 1) {
+            if (args[0].chars().count() == 0
+                    || !args[0].chars().allMatch(Character::isDigit)
+                    || Integer.parseInt(args[0]) < 1)
+                return List.of("<integer>");
+        }
 
         return List.of();
     }

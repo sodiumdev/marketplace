@@ -126,7 +126,7 @@ public interface EnumConfig {
     /**
      * @return The default value defined in the enum instance
      */
-    Object defaultValue();
+    @NotNull Object defaultValue();
 
     /**
      * @return YML Configuration Instance

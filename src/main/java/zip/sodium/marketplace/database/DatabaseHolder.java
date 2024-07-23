@@ -1,11 +1,9 @@
 package zip.sodium.marketplace.database;
 
-import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
 import com.mongodb.MongoException;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
-import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bson.Document;
 import org.bson.types.Binary;
 import org.bukkit.OfflinePlayer;
@@ -14,18 +12,15 @@ import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Nullable;
 import zip.sodium.marketplace.Entrypoint;
 import zip.sodium.marketplace.config.builtin.DatabaseConfig;
-import zip.sodium.marketplace.config.builtin.WebhookConfig;
 import zip.sodium.marketplace.data.listing.Listing;
 import zip.sodium.marketplace.data.transaction.Transaction;
 import zip.sodium.marketplace.util.bukkit.ItemStackUtil;
 import zip.sodium.marketplace.util.bukkit.PlayerUtil;
-import zip.sodium.marketplace.webhook.WebhookProvider;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import java.util.LinkedList;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 
@@ -35,6 +30,7 @@ public final class DatabaseHolder {
     private static MongoClient client = null;
 
     private static MongoCollection<Document> itemsCollection = null;
+    private static MongoCollection<Document> blackItemsCollection = null;
     private static MongoCollection<Document> transactionsCollection = null;
 
     private static void tryConnect() {
@@ -63,6 +59,7 @@ public final class DatabaseHolder {
         final var marketplaceDataDb = client.getDatabase(DatabaseConfig.DATABASE_NAME.get());
 
         itemsCollection = marketplaceDataDb.getCollection(DatabaseConfig.ITEMS_COLLECTION_NAME.get());
+        blackItemsCollection = marketplaceDataDb.getCollection(DatabaseConfig.BLACK_ITEMS_COLLECTION_NAME.get());
         transactionsCollection = marketplaceDataDb.getCollection(DatabaseConfig.TRANSACTIONS_COLLECTION_NAME.get());
     }
 
@@ -135,6 +132,31 @@ public final class DatabaseHolder {
         );
     }
 
+    public static CompletableFuture<Collection<Listing>> findBlackListings(final int skip, final int limit) {
+        return CompletableFuture.supplyAsync(() -> {
+            final var cursor = blackItemsCollection.find()
+                    .skip(skip)
+                    .limit(limit);
+
+            final var listings = new LinkedList<Listing>();
+            try (final var cursorIterator = cursor.cursor()) {
+                while (cursorIterator.hasNext()) {
+                    final var document = cursorIterator.next();
+
+                    final var listing = parseListing(document);
+                    if (listing == null)
+                        continue;
+
+                    listings.add(
+                            listing
+                    );
+                }
+            }
+
+            return listings;
+        });
+    }
+
     public static CompletableFuture<Collection<Listing>> findListings(final int skip, final int limit) {
         return CompletableFuture.supplyAsync(() -> {
             final var cursor = itemsCollection.find()
@@ -166,7 +188,7 @@ public final class DatabaseHolder {
             return null;
 
         final var objectPrice = document.get("price");
-        if (!(objectPrice instanceof final Integer price))
+        if (!(objectPrice instanceof final Number price))
             return null;
 
         final var objectItemData = document.get("item_data");
@@ -187,11 +209,36 @@ public final class DatabaseHolder {
         return new Listing(
                 seller,
                 stack,
-                price
+                price.doubleValue()
         );
     }
 
-    public static CompletableFuture<Boolean> putUp(final OfflinePlayer seller, final ItemStack item, final int price) {
+    public static CompletableFuture<Boolean> putUpBlack(final OfflinePlayer seller, final ItemStack item, final double price) {
+        final byte[] serialized;
+        try {
+            serialized = ItemStackUtil.serialize(item);
+        } catch (IOException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
+            Entrypoint.logger().log(
+                    Level.SEVERE,
+                    "Error serializing item!",
+                    e
+            );
+
+            return CompletableFuture.completedFuture(false);
+        }
+
+        return CompletableFuture.supplyAsync(() -> {
+            blackItemsCollection.insertOne(
+                    new Document("seller_id", seller.getUniqueId().toString())
+                            .append("item_data", serialized)
+                            .append("price", price)
+            );
+
+            return true;
+        });
+    }
+
+    public static CompletableFuture<Boolean> putUp(final OfflinePlayer seller, final ItemStack item, final double price) {
         final byte[] serialized;
         try {
             serialized = ItemStackUtil.serialize(item);
@@ -220,7 +267,7 @@ public final class DatabaseHolder {
         });
     }
 
-    public static CompletableFuture<Boolean> purchase(final OfflinePlayer seller, final OfflinePlayer buyer, final ItemStack item, final int price) {
+    public static CompletableFuture<Boolean> purchaseBlack(final OfflinePlayer seller, final OfflinePlayer buyer, final ItemStack item, final double price) {
         final byte[] serialized;
         try {
             serialized = ItemStackUtil.serialize(item);
@@ -234,12 +281,47 @@ public final class DatabaseHolder {
             return CompletableFuture.completedFuture(false);
         }
 
-        logPurchaseToWebhook(
-                seller,
-                buyer,
-                item,
-                price
-        );
+        return CompletableFuture.runAsync(() -> {
+            blackItemsCollection.deleteOne(
+                    new Document("seller_id", seller.getUniqueId().toString())
+                            .append("item_data", serialized)
+                            .append("price", price)
+            );
+            itemsCollection.deleteOne(
+                    new Document("seller_id", seller.getUniqueId().toString())
+                            .append("item_data", serialized)
+                            .append("price", price)
+            );
+        }).thenApplyAsync(result -> transactionsCollection.insertOne(
+                new Document("actor_id", seller.getUniqueId().hashCode())
+                        .append("bought_by", buyer.getUniqueId().toString())
+                        .append("item_data", serialized)
+                        .append("price", price * 2)
+        )).thenApplyAsync(result -> {
+            transactionsCollection.insertOne(
+                    new Document("actor_id", buyer.getUniqueId().hashCode())
+                            .append("seller_id", seller.getUniqueId().toString())
+                            .append("item_data", serialized)
+                            .append("price", price / 2.0)
+            );
+
+            return true;
+        });
+    }
+
+    public static CompletableFuture<Boolean> purchase(final OfflinePlayer seller, final OfflinePlayer buyer, final ItemStack item, final double price) {
+        final byte[] serialized;
+        try {
+            serialized = ItemStackUtil.serialize(item);
+        } catch (IOException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
+            Entrypoint.logger().log(
+                    Level.SEVERE,
+                    "Error serializing item!",
+                    e
+            );
+
+            return CompletableFuture.completedFuture(false);
+        }
 
         return CompletableFuture.runAsync(() -> itemsCollection.deleteOne(
                 new Document("seller_id", seller.getUniqueId().toString())
@@ -262,25 +344,28 @@ public final class DatabaseHolder {
         });
     }
 
-    private static void logPurchaseToWebhook(final OfflinePlayer seller, final OfflinePlayer buyer, final ItemStack item, final int price) {
-        final var webhook = WebhookProvider.getClient();
-        if (webhook == null)
-            return;
+    public static CompletableFuture<Boolean> tryFindBlack(final OfflinePlayer seller, final ItemStack item, final double price) {
+        final byte[] serialized;
+        try {
+            serialized = ItemStackUtil.serialize(item);
+        } catch (IOException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
+            Entrypoint.logger().log(
+                    Level.SEVERE,
+                    "Error serializing item!",
+                    e
+            );
 
-        final var embed = new WebhookEmbedBuilder()
-                .setColor(WebhookConfig.EMBED_COLOR.getHex())
-                .setDescription(WebhookConfig.PURCHASE_LOG.getResolved(
-                        Placeholder.unparsed("seller", Objects.requireNonNull(seller.getName())),
-                        Placeholder.unparsed("buyer", Objects.requireNonNull(buyer.getName())),
-                        Placeholder.unparsed("item", item.toString()),
-                        Placeholder.unparsed("price", Integer.toString(price))
-                ))
-                .build();
+            return CompletableFuture.completedFuture(false);
+        }
 
-        webhook.send(embed);
+        return CompletableFuture.supplyAsync(() -> blackItemsCollection.countDocuments(
+                new Document("seller_id", seller.getUniqueId().toString())
+                        .append("item_data", serialized)
+                        .append("price", price)
+        ) >= 1);
     }
 
-    public static CompletableFuture<Boolean> tryFind(final OfflinePlayer seller, final ItemStack item, final int price) {
+    public static CompletableFuture<Boolean> tryFind(final OfflinePlayer seller, final ItemStack item, final double price) {
         final byte[] serialized;
         try {
             serialized = ItemStackUtil.serialize(item);
@@ -299,6 +384,10 @@ public final class DatabaseHolder {
                         .append("item_data", serialized)
                         .append("price", price)
         ) >= 1);
+    }
+
+    public static CompletableFuture<Void> clearBlack() {
+        return CompletableFuture.runAsync(() -> blackItemsCollection.deleteMany(new Document()));
     }
 
     public static void cleanup() {

@@ -6,6 +6,7 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.NotNull;
 import zip.sodium.marketplace.config.EnumConfig;
 
 public enum WebhookConfig implements EnumConfig {
@@ -27,9 +28,9 @@ public enum WebhookConfig implements EnumConfig {
     }
 
     private Object cache = null;
-    private final Object defaultValue;
+    private final @NotNull Object defaultValue;
 
-    WebhookConfig(final String defaultValue) {
+    WebhookConfig(final @NotNull String defaultValue) {
         this.defaultValue = defaultValue;
     }
 
@@ -47,10 +48,10 @@ public enum WebhookConfig implements EnumConfig {
         }
     }
 
-    public String getResolved(final TagResolver... resolver) {
+    public String get(final TagResolver... resolver) {
         return PlainTextComponentSerializer.plainText().serialize(
                 MiniMessage.miniMessage().deserialize(
-                        get(FileConfiguration::getString),
+                        get(),
                         resolver
                 )
         );
@@ -71,7 +72,7 @@ public enum WebhookConfig implements EnumConfig {
     }
 
     @Override
-    public Object defaultValue() {
+    public @NotNull Object defaultValue() {
         return defaultValue;
     }
 

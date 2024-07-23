@@ -6,6 +6,9 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
 import zip.sodium.marketplace.config.builtin.GuiConfig;
 import zip.sodium.marketplace.data.listing.Listing;
 import zip.sodium.marketplace.database.DatabaseHolder;
@@ -15,16 +18,53 @@ import zip.sodium.marketplace.util.bukkit.ItemStackUtil;
 import zip.sodium.marketplace.vault.VaultProvider;
 import zip.sodium.marketplace.webhook.WebhookProvider;
 
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
-public final class MarketplaceCommandExecutor {
-    private MarketplaceCommandExecutor() {}
+public final class BlackmarketCommandExecutor {
+    private BlackmarketCommandExecutor() {}
+
+    private static final Random RANDOM = new Random();
+
+    private static Plugin plugin = null;
+    private static BukkitTask task = null;
+
+    public static void bootstrap(final Plugin plugin) {
+        BlackmarketCommandExecutor.plugin = plugin;
+
+        task = new BukkitRunnable() {
+            @Override
+            public void run() {
+                refreshBlackmarket();
+            }
+        }.runTaskTimerAsynchronously(plugin, 0L, 4 * 60 * 60 * 20L);
+    }
+
+    private static void refreshBlackmarket() {
+        DatabaseHolder.clearBlack().thenRun(() -> DatabaseHolder.findListings(0, 0).thenAccept(listings -> {
+            for (final var listing : listings) {
+                if (RANDOM.nextInt(5) != 0)
+                    continue;
+
+                DatabaseHolder.putUpBlack(
+                        listing.seller(),
+                        listing.stack(),
+                        listing.price()
+                );
+            }
+        }));
+    }
+
+    public static boolean executeRefresh(final Player player) {
+        if (task != null)
+            task.cancel();
+        if (plugin != null)
+            bootstrap(plugin);
+
+        return true;
+    }
 
     public static boolean execute(final Player player) {
-        Gui.of(GuiConfig.MARKETPLACE_GUI_TITLE.get(), 5, MarketplaceCommandExecutor::setupGui)
+        Gui.of(GuiConfig.BLACKMARKET_GUI_TITLE.get(), 5, BlackmarketCommandExecutor::setupGui)
                 .open(player);
 
         return true;
@@ -42,7 +82,7 @@ public final class MarketplaceCommandExecutor {
         gui.placePageIndicator(4);
 
         final int maxListings = 18;
-        DatabaseHolder.findListings(maxListings * gui.page(), maxListings)
+        DatabaseHolder.findBlackListings(maxListings * gui.page(), maxListings)
                 .thenAccept(listings -> foundListings(gui, listings));
     }
 
@@ -91,7 +131,7 @@ public final class MarketplaceCommandExecutor {
 
         lore.add(
                 GuiConfig.PRICE_ON_LORE.get(
-                        Placeholder.unparsed("price", Double.toString(listing.price()))
+                        Placeholder.unparsed("price", Double.toString(listing.price() / 2.0))
                 )
         );
 
@@ -131,7 +171,7 @@ public final class MarketplaceCommandExecutor {
     }
 
     private static void checkAndBuy(final Gui gui, final Player player, final OfflinePlayer seller, final ItemStack buyingItem, final double price) {
-        DatabaseHolder.tryFind(seller, buyingItem, price).thenAccept(found -> {
+        DatabaseHolder.tryFindBlack(seller, buyingItem, price).thenAccept(found -> {
             if (!found) {
                 gui.setupAndSurround(
                         player,
@@ -149,8 +189,10 @@ public final class MarketplaceCommandExecutor {
     private static void checkAndBuy$2(final Gui gui, final Player player, final OfflinePlayer seller, final ItemStack buyingItem, final double price) {
         final var economy = VaultProvider.getEconomy();
 
+        final double buyingPrice = price / 2.0;
+
         final double balance = economy.getBalance(player);
-        if (price > balance) {
+        if (buyingPrice > balance) {
             gui.setupAndSurround(
                     player,
                     false,
@@ -171,7 +213,7 @@ public final class MarketplaceCommandExecutor {
             return;
         }
 
-        DatabaseHolder.purchase(seller, player, buyingItem, price).thenAccept(success -> {
+        DatabaseHolder.purchaseBlack(seller, player, buyingItem, price).thenAccept(success -> {
             if (!success) {
                 gui.setupAndSurround(
                         player,
@@ -186,17 +228,17 @@ public final class MarketplaceCommandExecutor {
                     seller,
                     player,
                     buyingItem,
-                    price
+                    buyingPrice
             );
 
             economy.withdrawPlayer(
                     player,
-                    price
+                    buyingPrice
             );
 
             economy.depositPlayer(
                     seller,
-                    price
+                    price * 2
             );
 
             player.getInventory().addItem(buyingItem);
@@ -205,7 +247,7 @@ public final class MarketplaceCommandExecutor {
                     player,
                     true,
                     GuiConfig.BOUGHT_ITEM.get(
-                            Placeholder.unparsed("price", Double.toString(price)),
+                            Placeholder.unparsed("price", Double.toString(buyingPrice)),
                             Placeholder.unparsed("seller", Objects.toString(seller.getName()))
                     )
             );

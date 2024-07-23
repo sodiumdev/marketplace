@@ -43,10 +43,12 @@ public final class Entrypoint extends JavaPlugin {
         instance = this;
 
         ConfigHandler.acknowledge(this);
-        ListenerHandler.acknowledge(this);
 
         DatabaseHolder.acknowledge();
-        CommandRegistrar.acknowledge();
+
+        ListenerHandler.acknowledge(this);
+        CommandRegistrar.acknowledge(this);
+
         WebhookProvider.acknowledge();
     }
 

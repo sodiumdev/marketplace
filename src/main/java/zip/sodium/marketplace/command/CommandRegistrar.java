@@ -3,10 +3,14 @@ package zip.sodium.marketplace.command;
 import com.mojang.brigadier.CommandDispatcher;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandMap;
+import org.bukkit.plugin.Plugin;
 import zip.sodium.marketplace.Entrypoint;
+import zip.sodium.marketplace.command.brigadier.BrigadierBlackmarketCommand;
 import zip.sodium.marketplace.command.brigadier.BrigadierMarketplaceCommand;
 import zip.sodium.marketplace.command.brigadier.BrigadierSellCommand;
 import zip.sodium.marketplace.command.brigadier.BrigadierTransactionsCommand;
+import zip.sodium.marketplace.command.common.BlackmarketCommandExecutor;
+import zip.sodium.marketplace.command.spigot.SpigotBlackmarketCommand;
 import zip.sodium.marketplace.command.spigot.SpigotMarketplaceCommand;
 import zip.sodium.marketplace.command.spigot.SpigotSellCommand;
 import zip.sodium.marketplace.command.spigot.SpigotTransactionsCommand;
@@ -79,7 +83,9 @@ public final class CommandRegistrar {
         return (CommandMap) map;
     }
 
-    public static void acknowledge() {
+    public static void acknowledge(final Plugin plugin) {
+        bootstrapCommands(plugin);
+
         try {
             final var dispatcher = findCommandDispatcher();
 
@@ -109,15 +115,21 @@ public final class CommandRegistrar {
         }
     }
 
+    private static void bootstrapCommands(final Plugin plugin) {
+        BlackmarketCommandExecutor.bootstrap(plugin);
+    }
+
     private static void registerViaSpigot(final CommandMap map) {
         SpigotSellCommand.acknowledge(map);
         SpigotMarketplaceCommand.acknowledge(map);
         SpigotTransactionsCommand.acknowledge(map);
+        SpigotBlackmarketCommand.acknowledge(map);
     }
 
     private static void registerViaCommandDispatcher(CommandDispatcher<?> dispatcher) {
         BrigadierSellCommand.acknowledge(dispatcher);
         BrigadierMarketplaceCommand.acknowledge(dispatcher);
         BrigadierTransactionsCommand.acknowledge(dispatcher);
+        BrigadierBlackmarketCommand.acknowledge(dispatcher);
     }
 }

@@ -56,7 +56,7 @@ public class Gui {
     public void placePageIndicator(final int slot) {
         setItem(slot, ItemStackUtil.of(
                 Material.BLACK_STAINED_GLASS_PANE,
-                GuiConfig.CURRENT_PAGE_NAME.getResolved(
+                GuiConfig.CURRENT_PAGE_NAME.get(
                         Placeholder.unparsed("page", Integer.toString(page()))
                 )
         ));

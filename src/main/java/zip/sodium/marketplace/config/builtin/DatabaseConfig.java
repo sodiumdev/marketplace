@@ -3,6 +3,7 @@ package zip.sodium.marketplace.config.builtin;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.NotNull;
 import zip.sodium.marketplace.config.EnumConfig;
 
 public enum DatabaseConfig implements EnumConfig {
@@ -17,6 +18,9 @@ public enum DatabaseConfig implements EnumConfig {
     ),
     ITEMS_COLLECTION_NAME(
             "Items"
+    ),
+    BLACK_ITEMS_COLLECTION_NAME(
+            "BlackItems"
     );
 
     private static YamlConfiguration configFile;
@@ -27,9 +31,9 @@ public enum DatabaseConfig implements EnumConfig {
     }
 
     private Object cache = null;
-    private final Object defaultValue;
+    private final @NotNull Object defaultValue;
 
-    DatabaseConfig(final String defaultValue) {
+    DatabaseConfig(final @NotNull String defaultValue) {
         this.defaultValue = defaultValue;
     }
 
@@ -48,7 +52,7 @@ public enum DatabaseConfig implements EnumConfig {
     }
 
     @Override
-    public Object defaultValue() {
+    public @NotNull Object defaultValue() {
         return defaultValue;
     }
 
