@@ -5,13 +5,17 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import org.bson.Document;
+import org.bson.types.Binary;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.inventory.ItemStack;
+import org.jetbrains.annotations.Nullable;
 import zip.sodium.marketplace.Entrypoint;
 import zip.sodium.marketplace.config.builtin.DatabaseConfig;
-import zip.sodium.marketplace.data.status.MarketplaceStatus;
+import zip.sodium.marketplace.data.listing.Listing;
+import zip.sodium.marketplace.data.transaction.Transaction;
 import zip.sodium.marketplace.util.bukkit.ItemStackUtil;
+import zip.sodium.marketplace.util.bukkit.PlayerUtil;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -57,21 +61,129 @@ public final class DatabaseHolder {
         transactionsCollection = marketplaceDataDb.getCollection(DatabaseConfig.TRANSACTIONS_COLLECTION_NAME.get());
     }
 
-    public static CompletableFuture<Collection<Document>> findListings(final int skip, final int limit) {
+    public static CompletableFuture<Collection<Transaction>> findTransactions(final OfflinePlayer player, final int skip, final int limit) {
+        return CompletableFuture.supplyAsync(() -> {
+            final var cursor = transactionsCollection.find(
+                    new Document("actor_id", player.getUniqueId().hashCode())
+            ).skip(skip).limit(limit);
+
+            final var transactions = new LinkedList<Transaction>();
+            try (final var cursorIterator = cursor.cursor()) {
+                while (cursorIterator.hasNext()) {
+                    final var document = cursorIterator.next();
+
+                    final var transaction = parseTransaction(document);
+                    if (transaction == null)
+                        continue;
+
+                    transactions.add(transaction);
+                }
+            }
+
+            return transactions;
+        });
+    }
+
+    public static @Nullable Transaction parseTransaction(final Document document) {
+        final var objectPrice = document.get("price");
+        if (!(objectPrice instanceof final Integer price))
+            return null;
+
+        final var objectItemData = document.get("item_data");
+        if (!(objectItemData instanceof final Binary binaryItemData))
+            return null;
+
+        final var itemData = binaryItemData.getData();
+
+        final ItemStack stack;
+        try {
+            stack = ItemStackUtil.deserialize(itemData);
+        } catch (IOException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
+            return null;
+        }
+
+        final Boolean wasBought;
+        final OfflinePlayer extra;
+
+        if (document.get("bought_by") instanceof final String uuidString) {
+            extra = PlayerUtil.tryGetOfflinePlayer(uuidString);
+            if (extra == null)
+                return null;
+
+            wasBought = true;
+        } else if (document.get("seller_id") instanceof final String uuidString) {
+            extra = PlayerUtil.tryGetOfflinePlayer(uuidString);
+            if (extra == null)
+                return null;
+
+            wasBought = false;
+        } else {
+            wasBought = null;
+            extra = null;
+        }
+
+        return new Transaction(
+                extra,
+                wasBought,
+                stack,
+                price
+        );
+    }
+
+    public static CompletableFuture<Collection<Listing>> findListings(final int skip, final int limit) {
         return CompletableFuture.supplyAsync(() -> {
             final var cursor = itemsCollection.find()
                     .skip(skip)
                     .limit(limit);
 
-            final var documents = new LinkedList<Document>();
+            final var listings = new LinkedList<Listing>();
             try (final var cursorIterator = cursor.cursor()) {
                 while (cursorIterator.hasNext()) {
-                    documents.add(cursorIterator.next());
+                    final var document = cursorIterator.next();
+
+                    final var listing = parseListing(document);
+                    if (listing == null)
+                        continue;
+
+                    listings.add(
+                            listing
+                    );
                 }
             }
 
-            return documents;
+            return listings;
         });
+    }
+
+    public static Listing parseListing(final Document document) {
+        final var objectSellerId = document.get("seller_id");
+        if (!(objectSellerId instanceof final String stringSellerId))
+            return null;
+
+        final var objectPrice = document.get("price");
+        if (!(objectPrice instanceof final Integer price))
+            return null;
+
+        final var objectItemData = document.get("item_data");
+        if (!(objectItemData instanceof final Binary binaryItemData))
+            return null;
+
+        final var itemData = binaryItemData.getData();
+
+        final ItemStack stack;
+        try {
+            stack = ItemStackUtil.deserialize(itemData);
+        } catch (IOException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
+            return null;
+        }
+
+        final var seller = PlayerUtil.tryGetOfflinePlayer(stringSellerId);
+
+        return new Listing(
+                seller,
+                stack,
+                price
+        );
     }
 
     public static CompletableFuture<Boolean> putUp(final OfflinePlayer seller, final ItemStack item, final int price) {
@@ -95,7 +207,6 @@ public final class DatabaseHolder {
         )).thenApplyAsync(result -> {
             transactionsCollection.insertOne(
                     new Document("actor_id", seller.getUniqueId().hashCode())
-                            .append("status", MarketplaceStatus.PUT_UP.ordinal())
                             .append("item_data", serialized)
                             .append("price", price)
             );
@@ -124,14 +235,12 @@ public final class DatabaseHolder {
                         .append("price", price)
         )).thenApplyAsync(result -> transactionsCollection.insertOne(
                     new Document("actor_id", seller.getUniqueId().hashCode())
-                            .append("status", MarketplaceStatus.SOLD.ordinal())
                             .append("bought_by", buyer.getUniqueId().toString())
                             .append("item_data", serialized)
                             .append("price", price)
         )).thenApplyAsync(result -> {
             transactionsCollection.insertOne(
                     new Document("actor_id", buyer.getUniqueId().hashCode())
-                            .append("status", MarketplaceStatus.BOUGHT.ordinal())
                             .append("seller_id", seller.getUniqueId().toString())
                             .append("item_data", serialized)
                             .append("price", price)

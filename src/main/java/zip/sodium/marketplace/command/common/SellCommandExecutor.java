@@ -8,8 +8,11 @@ public final class SellCommandExecutor {
     private SellCommandExecutor() {}
 
     public static boolean execute(final Player player, final int price) {
-        final var item = player.getInventory().getItemInMainHand();
-        if (item.getAmount() == 0 || item.getType().isAir())
+        final var inventory = player.getInventory();
+        final int heldSlot = inventory.getHeldItemSlot();
+
+        final var item = inventory.getItem(heldSlot);
+        if (item == null || item.getAmount() == 0 || item.getType().isAir())
             return MessageConfig.INVALID_ITEM.send(player);
 
         MessageConfig.ENLISTING_ITEM.send(player);
@@ -22,7 +25,7 @@ public final class SellCommandExecutor {
             if (!success)
                 return MessageConfig.ERROR_ENLISTING_ITEM.send(player);
 
-            player.getInventory().setItemInMainHand(null);
+            inventory.setItem(heldSlot, null);
 
             return MessageConfig.SUCCESSFULLY_ENLISTED_ITEM.send(player);
         });

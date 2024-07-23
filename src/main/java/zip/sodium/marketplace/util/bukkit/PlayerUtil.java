@@ -1,10 +1,13 @@
-package zip.sodium.marketplace.util.nms;
+package zip.sodium.marketplace.util.bukkit;
 
+import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Contract;
 import zip.sodium.marketplace.util.ReflectionUtil;
 
 import java.lang.reflect.Field;
+import java.util.UUID;
 
 public final class PlayerUtil {
     private PlayerUtil() {}
@@ -27,5 +30,20 @@ public final class PlayerUtil {
             return null;
 
         return (Player) ReflectionUtil.tryGetValue(nmsPlayer, BUKKIT_ENTITY_FIELD);
+    }
+
+    @Contract("null -> null")
+    public static OfflinePlayer tryGetOfflinePlayer(final String uuidString) {
+        if (uuidString == null)
+            return null;
+
+        final UUID uuid;
+        try {
+            uuid = UUID.fromString(uuidString);
+        } catch (final IllegalArgumentException e) {
+            return null;
+        }
+
+        return Bukkit.getOfflinePlayer(uuid);
     }
 }

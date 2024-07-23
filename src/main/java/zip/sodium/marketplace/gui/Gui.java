@@ -1,5 +1,6 @@
 package zip.sodium.marketplace.gui;
 
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -8,13 +9,13 @@ import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import zip.sodium.marketplace.config.builtin.GuiConfig;
 import zip.sodium.marketplace.data.message.MessageType;
 import zip.sodium.marketplace.gui.item.GuiItem;
 import zip.sodium.marketplace.listener.builtin.GuiListener;
 import zip.sodium.marketplace.util.bukkit.ItemStackUtil;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.function.BiConsumer;
 
 public class Gui {
@@ -44,10 +45,82 @@ public class Gui {
     private final int size;
     private final Map<Integer, GuiItem> items;
 
+    private int page = 0;
+
     private Gui(final String title, final int rows) {
         size = rows * 9;
         items = new HashMap<>(size);
         this.title = title;
+    }
+
+    public void placePageIndicator(final int slot) {
+        setItem(slot, ItemStackUtil.of(
+                Material.BLACK_STAINED_GLASS_PANE,
+                GuiConfig.CURRENT_PAGE_NAME.getResolved(
+                        Placeholder.unparsed("page", Integer.toString(page()))
+                )
+        ));
+    }
+
+    public void placePaginationControls(final int centerSlot) {
+        if (page() > 0)
+            setItem(centerSlot - 1, GuiItem.of(
+                    ItemStackUtil.of(
+                            Material.ARROW,
+                            GuiConfig.PREVIOUS_ITEM_NAME.get()
+                    ),
+                    clicker -> {
+                        if (page() == 0)
+                            return;
+
+                        previousPage();
+                        setup(clicker);
+                    }
+            ));
+        else setItem(centerSlot - 1, ItemStackUtil.of(
+                Material.BARRIER,
+                GuiConfig.CANT_GO_BACK_ITEM_NAME.get()
+        ));
+
+        setItem(centerSlot, GuiItem.of(
+                ItemStackUtil.of(
+                        Material.PLAYER_HEAD,
+                        GuiConfig.REFRESH_ITEM_NAME.get()
+                ),
+                this::setup
+        ));
+
+        setItem(centerSlot + 1, GuiItem.of(
+                ItemStackUtil.of(
+                        Material.ARROW,
+                        GuiConfig.NEXT_ITEM_NAME.get()
+                ),
+                clicker -> {
+                    nextPage();
+                    setup(clicker);
+                }
+        ));
+    }
+
+    private void checkPageBounds() {
+        if (page < 0)
+            page = 0;
+    }
+
+    public final void nextPage() {
+        page++;
+        checkPageBounds();
+    }
+
+    public final void previousPage() {
+        page--;
+        checkPageBounds();
+    }
+
+    public final int page() {
+        checkPageBounds();
+
+        return page;
     }
 
     public final void surroundWith(final ItemStack stack) {
@@ -56,7 +129,9 @@ public class Gui {
         for (int y = 0; y < 5; y++) {
             for (int x = 0; x < 9; x++) {
                 if (y == 0 || y == height - 1 || x == 0 || x == 8) {
-                    inventory.setItem(y * 9 + x, stack);
+                    final int slot = y * 9 + x;
+
+                    inventory.setItem(slot, stack);
                 }
             }
         }
@@ -158,7 +233,7 @@ public class Gui {
         GuiListener.inventoryOpened(player, this);
 
         if (titleOverride == null) {
-            if (title == null) {
+            if (title != null) {
                 inventory = Bukkit.createInventory(null, size, title);
             } else {
                 inventory = Bukkit.createInventory(null, size);

@@ -6,7 +6,6 @@ import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.permissions.Permissible;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import zip.sodium.marketplace.config.EnumConfig;
@@ -27,8 +26,8 @@ public enum GuiConfig implements EnumConfig {
     NEXT_ITEM_NAME(
             "<!i><green>Next"
     ),
-    LORE_PRICE(
-            "<!i><reset>$<price>"
+    PRICE_ON_LORE(
+            "<!i><white>$<price>"
     ),
     CANCEL_ITEM_NAME(
             "<!i><red>Cancel"
@@ -47,6 +46,36 @@ public enum GuiConfig implements EnumConfig {
     ),
     BOUGHT_ITEM(
             "<!i><green>Successfully Bought Item"
+    ),
+    CURRENT_PAGE_NAME(
+            "<!i>Page: <page>"
+    ),
+    BUY_ACTION_CANCELLED(
+            "<!i><red>Buy Action cancelled"
+    ),
+    UNKNOWN_SELLER(
+            "<!i><red>This seller is unknown!"
+    ),
+    INVALID_LISTING(
+            "<!i><red>This listing is invalid!"
+    ),
+    CANT_GO_BACK_ITEM_NAME(
+            "<!i><red>Can't go back!"
+    ),
+    TRANSACTIONS_GUI_TITLE(
+            "<white>Transactions"
+    ),
+    TRANSACTION_ITEM_NAME(
+            "<!i><white>Transaction"
+    ),
+    BUYER_ON_LORE(
+            "<!i><white>Listing got bought by `<buyer>`"
+    ),
+    SELLER_ON_LORE(
+            "<!i><white>Listing bought from `<seller>`"
+    ),
+    PUT_UP_ON_LORE(
+            "<!i><white>Put up by `<me>`"
     );
 
     private static YamlConfiguration configFile;

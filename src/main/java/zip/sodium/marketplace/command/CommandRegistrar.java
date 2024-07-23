@@ -6,8 +6,10 @@ import org.bukkit.command.CommandMap;
 import zip.sodium.marketplace.Entrypoint;
 import zip.sodium.marketplace.command.brigadier.BrigadierMarketplaceCommand;
 import zip.sodium.marketplace.command.brigadier.BrigadierSellCommand;
+import zip.sodium.marketplace.command.brigadier.BrigadierTransactionsCommand;
 import zip.sodium.marketplace.command.spigot.SpigotMarketplaceCommand;
 import zip.sodium.marketplace.command.spigot.SpigotSellCommand;
+import zip.sodium.marketplace.command.spigot.SpigotTransactionsCommand;
 import zip.sodium.marketplace.util.ReflectionUtil;
 
 import java.util.Objects;
@@ -110,10 +112,12 @@ public final class CommandRegistrar {
     private static void registerViaSpigot(final CommandMap map) {
         SpigotSellCommand.acknowledge(map);
         SpigotMarketplaceCommand.acknowledge(map);
+        SpigotTransactionsCommand.acknowledge(map);
     }
 
     private static void registerViaCommandDispatcher(CommandDispatcher<?> dispatcher) {
         BrigadierSellCommand.acknowledge(dispatcher);
         BrigadierMarketplaceCommand.acknowledge(dispatcher);
+        BrigadierTransactionsCommand.acknowledge(dispatcher);
     }
 }

@@ -1,10 +1,10 @@
 package zip.sodium.marketplace.gui.item;
 
+import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.ItemStack;
 
-import java.util.Objects;
 import java.util.function.Consumer;
 
 public final class GuiItem {
@@ -12,8 +12,8 @@ public final class GuiItem {
         return new GuiItem(itemStack, clickAction, dragAction);
     }
 
-    public static GuiItem of(final ItemStack itemStack) {
-        return new GuiItem(itemStack, event -> {}, event -> {});
+    public static GuiItem of(final ItemStack itemStack, final Consumer<Player> playerConsumer) {
+        return new GuiItem(itemStack, event -> playerConsumer.accept((Player) event.getWhoClicked()), event -> playerConsumer.accept((Player) event.getWhoClicked()));
     }
 
     private final ItemStack itemStack;

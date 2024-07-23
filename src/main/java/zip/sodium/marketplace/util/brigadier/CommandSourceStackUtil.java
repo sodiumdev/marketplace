@@ -3,7 +3,7 @@ package zip.sodium.marketplace.util.brigadier;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Contract;
 import zip.sodium.marketplace.util.ReflectionUtil;
-import zip.sodium.marketplace.util.nms.PlayerUtil;
+import zip.sodium.marketplace.util.bukkit.PlayerUtil;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;

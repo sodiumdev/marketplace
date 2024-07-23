@@ -43,18 +43,10 @@ public enum MessageConfig implements EnumConfig {
     ),
     ENLISTING_ITEM(
             "<white>Enlisting item...",
-            MessageType.SUCCESS
+            MessageType.PASS
     ),
     ERROR_ENLISTING_ITEM(
             "<red>Error enlisting item on marketplace!",
-            MessageType.FAIL
-    ),
-    UNKNOWN_SELLER(
-            "<red>This seller is unknown!",
-            MessageType.FAIL
-    ),
-    SOMETHING_WENT_WRONG(
-            "<red>Something went wrong while executing this command!",
             MessageType.FAIL
     ),
     SUCCESSFULLY_ENLISTED_ITEM(

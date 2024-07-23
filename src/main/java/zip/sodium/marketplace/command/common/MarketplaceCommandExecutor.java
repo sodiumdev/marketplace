@@ -1,33 +1,33 @@
 package zip.sodium.marketplace.command.common;
 
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
-import org.bson.Document;
-import org.bson.types.Binary;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import zip.sodium.marketplace.Entrypoint;
+import org.bukkit.inventory.meta.ItemMeta;
 import zip.sodium.marketplace.config.builtin.GuiConfig;
-import zip.sodium.marketplace.config.builtin.MessageConfig;
-import zip.sodium.marketplace.data.message.MessageType;
+import zip.sodium.marketplace.data.listing.Listing;
 import zip.sodium.marketplace.database.DatabaseHolder;
 import zip.sodium.marketplace.gui.Gui;
 import zip.sodium.marketplace.gui.item.GuiItem;
 import zip.sodium.marketplace.util.bukkit.ItemStackUtil;
 import zip.sodium.marketplace.vault.VaultProvider;
 
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
-import java.util.logging.Level;
 
 public final class MarketplaceCommandExecutor {
     private MarketplaceCommandExecutor() {}
+
+    public static boolean execute(final Player player) {
+        Gui.of(GuiConfig.MARKETPLACE_GUI_TITLE.get(), 5, MarketplaceCommandExecutor::setupGui)
+                .open(player);
+
+        return true;
+    }
 
     private static void setupGui(final Gui gui, final Player player) {
         gui.clear();
@@ -35,138 +35,66 @@ public final class MarketplaceCommandExecutor {
                 ItemStackUtil.of(Material.GRAY_STAINED_GLASS_PANE)
         );
 
-        gui.fill(1, 1, 8, 4, ItemStackUtil.of(Material.SKELETON_SKULL, GuiConfig.LOADING_SKULL_NAME.get()));
+        gui.fill(1, 1, 8, 4,
+                ItemStackUtil.of(Material.SKELETON_SKULL, GuiConfig.LOADING_SKULL_NAME.get()));
 
-        DatabaseHolder.findListings(0, 0)
-                .thenAccept(listings -> foundListings(player, gui, listings));
+        gui.placePageIndicator(4);
+
+        final int maxListings = 18;
+        DatabaseHolder.findListings(maxListings * gui.page(), maxListings)
+                .thenAccept(listings -> foundListings(gui, listings));
     }
 
-    private static void foundListings(final Player player, final Gui gui, final Collection<Document> listings) {
+    private static void foundListings(final Gui gui, final Collection<Listing> listings) {
         gui.clear(1, 1, 8, 4);
-
-        gui.setItem(21, GuiItem.of(
-                ItemStackUtil.of(
-                        Material.ARROW,
-                        GuiConfig.PREVIOUS_ITEM_NAME.get()
-                ),
-                click -> gui.setup((Player) click.getWhoClicked()),
-                drag -> gui.setup((Player) drag.getWhoClicked())
-        ));
-
-        gui.setItem(22, GuiItem.of(
-                ItemStackUtil.of(
-                        Material.PLAYER_HEAD,
-                        GuiConfig.REFRESH_ITEM_NAME.get()
-                ),
-                click -> gui.setup((Player) click.getWhoClicked()),
-                drag -> gui.setup((Player) drag.getWhoClicked())
-        ));
-
-        gui.setItem(23, GuiItem.of(
-                ItemStackUtil.of(
-                        Material.ARROW,
-                        GuiConfig.NEXT_ITEM_NAME.get()
-                ),
-                click -> gui.setup((Player) click.getWhoClicked()),
-                drag -> gui.setup((Player) drag.getWhoClicked())
-        ));
+        gui.placePaginationControls(22);
 
         gui.addItem(
-                listings.stream().map(document -> {
-                    final var rawData = document.get("item_data");
-                    if (!(rawData instanceof Binary binary)) {
-                        MessageConfig.SOMETHING_WENT_WRONG.send(player);
-                        player.closeInventory();
+                listings.stream().map(listing -> {
+                    final var stack = listing.stack();
+                    final int price = listing.price();
+                    final var seller = listing.seller();
 
-                        return null;
-                    }
-
-                    final var data = binary.getData();
-
-                    final ItemStack itemStack;
-                    try {
-                        itemStack = ItemStackUtil.deserialize(data);
-                    } catch (IOException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
-                        Entrypoint.logger().log(
-                                Level.SEVERE,
-                                "Error deserializing item while trying to find listings!",
-                                e
-                        );
-
-                        MessageConfig.SOMETHING_WENT_WRONG.send(player);
-                        player.closeInventory();
-
-                        return null;
-                    }
-
-                    final var showcaseItem = itemStack.clone();
-
-                    final var price = document.get("price");
-                    if (!(price instanceof final Integer integerPrice) || integerPrice <= 0) {
-                        Entrypoint.logger().severe("Invalid price tag!");
-
-                        MessageConfig.SOMETHING_WENT_WRONG.send(player);
-                        player.closeInventory();
-
-                        return null;
-                    }
+                    final var showcaseItem = stack.clone();
 
                     ItemStackUtil.editMeta(
                             showcaseItem,
-                            meta -> meta.setLore(
-                                    List.of(
-                                            GuiConfig.LORE_PRICE.getResolved(
-                                                    Placeholder.unparsed("price", price.toString())
-                                            )
-                                    )
-                            )
+                            meta -> editListingMeta(listing, meta)
                     );
-
-                    final var sellerId = document.get("seller_id");
-                    if (!(sellerId instanceof final String stringSellerId)) {
-                        Entrypoint.logger().severe("Seller id tag is not a string!");
-
-                        MessageConfig.UNKNOWN_SELLER.send(player);
-                        player.closeInventory();
-
-                        return null;
-                    }
-
-                    final UUID sellerUuid;
-                    try {
-                        sellerUuid = UUID.fromString(stringSellerId);
-                    } catch (final IllegalArgumentException e) {
-                        Entrypoint.logger().log(
-                                Level.SEVERE,
-                                "Seller id tag is not a valid UUID!",
-                                e
-                        );
-
-                        MessageConfig.UNKNOWN_SELLER.send(player);
-                        player.closeInventory();
-
-                        return null;
-                    }
-
-                    final var seller = Bukkit.getOfflinePlayer(sellerUuid);
 
                     return GuiItem.of(
                             showcaseItem,
-                            click -> setupConfirmation(
+                            ignored -> setupConfirmation(
                                     gui,
                                     seller,
-                                    itemStack,
-                                    integerPrice
-                            ),
-                            drag -> setupConfirmation(
-                                    gui,
-                                    seller,
-                                    itemStack,
-                                    integerPrice
+                                    stack,
+                                    price
                             )
                     );
-                }).filter(Objects::nonNull).toArray(GuiItem[]::new)
+                }).toArray(GuiItem[]::new)
         );
+    }
+
+    private static void editListingMeta(final Listing listing, final ItemMeta meta) {
+        final List<String> lore;
+        if (meta.hasLore()) {
+            lore = Objects.requireNonNull(meta.getLore());
+            lore.add("");
+        } else lore = new LinkedList<>();
+
+        lore.add(
+                GuiConfig.PUT_UP_ON_LORE.getResolved(
+                        Placeholder.unparsed("me", Objects.requireNonNull(listing.seller().getName()))
+                )
+        );
+
+        lore.add(
+                GuiConfig.PRICE_ON_LORE.getResolved(
+                        Placeholder.unparsed("price", Integer.toString(listing.price()))
+                )
+        );
+
+        meta.setLore(lore);
     }
 
     private static void setupConfirmation(final Gui gui, final OfflinePlayer seller, final ItemStack buyingItem, final int price) {
@@ -177,8 +105,11 @@ public final class MarketplaceCommandExecutor {
                         Material.RED_STAINED_GLASS_PANE,
                         GuiConfig.CANCEL_ITEM_NAME.get()
                 ),
-                click -> gui.setup((Player) click.getWhoClicked()),
-                drag -> gui.setup((Player) drag.getWhoClicked())
+                player -> gui.setupAndSurround(
+                        player,
+                        false,
+                        GuiConfig.BUY_ACTION_CANCELLED.get()
+                )
         ));
 
         gui.setItem(22, buyingItem);
@@ -188,16 +119,9 @@ public final class MarketplaceCommandExecutor {
                         Material.GREEN_STAINED_GLASS_PANE,
                         GuiConfig.CONFIRM_ITEM_NAME.get()
                 ),
-                click -> checkAndBuy(
+                player -> checkAndBuy(
                         gui,
-                        (Player) click.getWhoClicked(),
-                        seller,
-                        buyingItem,
-                        price
-                ),
-                drag -> checkAndBuy(
-                        gui,
-                        (Player) drag.getWhoClicked(),
+                        player,
                         seller,
                         buyingItem,
                         price
@@ -278,12 +202,5 @@ public final class MarketplaceCommandExecutor {
                     )
             );
         });
-    }
-
-    public static boolean execute(final Player player) {
-        final var gui = Gui.of(GuiConfig.MARKETPLACE_GUI_TITLE.get(), 5, MarketplaceCommandExecutor::setupGui);
-        gui.open(player);
-
-        return true;
     }
 }
