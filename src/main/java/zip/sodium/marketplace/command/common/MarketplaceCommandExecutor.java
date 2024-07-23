@@ -170,7 +170,7 @@ public final class MarketplaceCommandExecutor {
             return;
         }
 
-        DatabaseHolder.putDown(seller, player, buyingItem, price).thenAccept(success -> {
+        DatabaseHolder.purchase(seller, player, buyingItem, price).thenAccept(success -> {
             if (!success) {
                 gui.setupAndSurround(
                         player,

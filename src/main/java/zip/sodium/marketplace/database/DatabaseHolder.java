@@ -1,9 +1,11 @@
 package zip.sodium.marketplace.database;
 
+import club.minnced.discord.webhook.send.WebhookEmbedBuilder;
 import com.mongodb.MongoException;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bson.Document;
 import org.bson.types.Binary;
 import org.bukkit.OfflinePlayer;
@@ -12,15 +14,18 @@ import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.Nullable;
 import zip.sodium.marketplace.Entrypoint;
 import zip.sodium.marketplace.config.builtin.DatabaseConfig;
+import zip.sodium.marketplace.config.builtin.WebhookConfig;
 import zip.sodium.marketplace.data.listing.Listing;
 import zip.sodium.marketplace.data.transaction.Transaction;
 import zip.sodium.marketplace.util.bukkit.ItemStackUtil;
 import zip.sodium.marketplace.util.bukkit.PlayerUtil;
+import zip.sodium.marketplace.webhook.WebhookProvider;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
 import java.util.LinkedList;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 
@@ -215,7 +220,7 @@ public final class DatabaseHolder {
         });
     }
 
-    public static CompletableFuture<Boolean> putDown(final OfflinePlayer seller, final OfflinePlayer buyer, final ItemStack item, final int price) {
+    public static CompletableFuture<Boolean> purchase(final OfflinePlayer seller, final OfflinePlayer buyer, final ItemStack item, final int price) {
         final byte[] serialized;
         try {
             serialized = ItemStackUtil.serialize(item);
@@ -228,6 +233,13 @@ public final class DatabaseHolder {
 
             return CompletableFuture.completedFuture(false);
         }
+
+        logPurchaseToWebhook(
+                seller,
+                buyer,
+                item,
+                price
+        );
 
         return CompletableFuture.runAsync(() -> itemsCollection.deleteOne(
                 new Document("seller_id", seller.getUniqueId().toString())
@@ -248,6 +260,24 @@ public final class DatabaseHolder {
 
             return true;
         });
+    }
+
+    private static void logPurchaseToWebhook(final OfflinePlayer seller, final OfflinePlayer buyer, final ItemStack item, final int price) {
+        final var webhook = WebhookProvider.getClient();
+        if (webhook == null)
+            return;
+
+        final var embed = new WebhookEmbedBuilder()
+                .setColor(WebhookConfig.EMBED_COLOR.getHex())
+                .setDescription(WebhookConfig.PURCHASE_LOG.getResolved(
+                        Placeholder.unparsed("seller", Objects.requireNonNull(seller.getName())),
+                        Placeholder.unparsed("buyer", Objects.requireNonNull(buyer.getName())),
+                        Placeholder.unparsed("item", item.toString()),
+                        Placeholder.unparsed("price", Integer.toString(price))
+                ))
+                .build();
+
+        webhook.send(embed);
     }
 
     public static CompletableFuture<Boolean> tryFind(final OfflinePlayer seller, final ItemStack item, final int price) {

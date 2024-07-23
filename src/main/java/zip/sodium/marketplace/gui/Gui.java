@@ -235,12 +235,8 @@ public class Gui {
         if (titleOverride == null) {
             if (title != null) {
                 inventory = Bukkit.createInventory(null, size, title);
-            } else {
-                inventory = Bukkit.createInventory(null, size);
-            }
-        } else {
-            inventory = Bukkit.createInventory(null, size, titleOverride);
-        }
+            } else inventory = Bukkit.createInventory(null, size);
+        } else inventory = Bukkit.createInventory(null, size, titleOverride);
 
         player.openInventory(inventory);
     }

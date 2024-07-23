@@ -8,6 +8,7 @@ import zip.sodium.marketplace.config.ConfigHandler;
 import zip.sodium.marketplace.database.DatabaseHolder;
 import zip.sodium.marketplace.listener.ListenerHandler;
 import zip.sodium.marketplace.vault.VaultProvider;
+import zip.sodium.marketplace.webhook.WebhookProvider;
 
 import java.util.logging.Logger;
 
@@ -44,14 +45,14 @@ public final class Entrypoint extends JavaPlugin {
         ConfigHandler.acknowledge(this);
         ListenerHandler.acknowledge(this);
 
-        ;
-
         DatabaseHolder.acknowledge();
         CommandRegistrar.acknowledge();
+        WebhookProvider.acknowledge();
     }
 
     @Override
     public void onDisable() {
         DatabaseHolder.cleanup();
+        WebhookProvider.cleanup();
     }
 }
